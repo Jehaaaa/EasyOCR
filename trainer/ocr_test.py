@@ -37,18 +37,18 @@ def validation(model, criterion, evaluation_loader, converter, opt, device):
             preds = model(image, text_for_pred)
             forward_time = time.time() - start_time
 
-            # Calculate evaluation loss for CTC decoder.
-            preds_size = torch.IntTensor([preds.size(1)] * batch_size)
-            # permute 'preds' to use CTCloss format
-            cost = criterion(preds.log_softmax(2).permute(1, 0, 2), text_for_loss, preds_size, length_for_loss)
+            # Move to device
+            preds_size = torch.IntTensor([preds.size(1)] * batch_size).to(device)
+            text_for_loss = text_for_loss.to(device)
+            length_for_loss = length_for_loss.to(device)
 
-            if opt.decode == 'greedy':
-                # Select max probabilty (greedy decoding) then decode index to character
-                _, preds_index = preds.max(2)
-                preds_index = preds_index.view(-1)
-                preds_str = converter.decode_greedy(preds_index.data, preds_size.data)
-            elif opt.decode == 'beamsearch':
-                preds_str = converter.decode_beamsearch(preds, beamWidth=2)
+            # Calculate evaluation loss for CTC decoder.
+            cost = criterion(
+                preds.log_softmax(2).permute(1, 0, 2),
+                text_for_loss,
+                preds_size,
+                length_for_loss
+            )
 
         else:
             preds = model(image, text_for_pred, is_train=False)
